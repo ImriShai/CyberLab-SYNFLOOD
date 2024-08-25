@@ -1,0 +1,57 @@
+version: "3"
+
+services:
+    Attacker:
+        image: handsonsecurity/seed-ubuntu:large
+        container_name: Attacker-10.9.0.2
+        tty: true
+        cap_add:
+                - ALL
+        networks:
+            net-10.9.0.0:
+                ipv4_address: 10.9.0.2
+        volumes:
+                - ./volumes:/volumes
+        command: bash -c "
+                      /etc/init.d/openbsd-inetd start  &&
+                      tail -f /dev/null
+                 "
+                 
+    Monitor:
+        image: handsonsecurity/seed-ubuntu:large
+        container_name: Monitor-10.9.0.3
+        tty: true
+        cap_add:
+                - ALL
+        networks:
+            net-10.9.0.0:
+                ipv4_address: 10.9.0.3
+        volumes:
+                - ./volumes:/volumes
+        command: bash -c "
+                      /etc/init.d/openbsd-inetd start  &&
+                      tail -f /dev/null
+                 "
+
+    Target:
+        image: handsonsecurity/seed-ubuntu:large
+        container_name: Target-10.9.0.4
+        tty: true
+        cap_add:
+                - ALL
+        networks:
+            net-10.9.0.0:
+                ipv4_address: 10.9.0.4
+        volumes:
+                - ./volumes:/volumes
+        command: bash -c "
+                      /etc/init.d/openbsd-inetd start  &&
+                      tail -f /dev/null
+                 "
+
+networks:
+    net-10.9.0.0:
+        name: net-10.9.0.0
+        ipam:
+            config:
+                - subnet: 10.9.0.0/24
