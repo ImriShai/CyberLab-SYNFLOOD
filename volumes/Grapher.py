@@ -43,17 +43,17 @@ plot_histogram(c_times, 'C Attack Packet Send Time Distribution', 'Time to Send 
 
 # Print statistics for report
 print("Python Attack Pings:")
-print(f"  Average RTT: {python_ping_avg:.2f} ms")
-print(f"  Standard Deviation of RTT: {python_ping_std:.2f} ms\n")
+print(f"  Average RTT: {python_ping_avg:.5f} ms")
+print(f"  Standard Deviation of RTT: {python_ping_std:.5f} ms\n")
 
 print("C Attack Pings:")
-print(f"  Average RTT: {c_ping_avg:.2f} ms")
-print(f"  Standard Deviation of RTT: {c_ping_std:.2f} ms\n")
+print(f"  Average RTT: {c_ping_avg:.5f} ms")
+print(f"  Standard Deviation of RTT: {c_ping_std:.5f} ms\n")
 
 print("Python Attack Syns:")
-print(f"  Average Time to Send Packet: {python_syn_avg:.2f} ms")
-print(f"  Standard Deviation of Time to Send Packet: {python_syn_std:.2f} ms\n")
+print(f"  Average Time to Send Packet: {python_syn_avg:.5f} ms")
+print(f"  Standard Deviation of Time to Send Packet: {python_syn_std:.5f} ms\n")
 
 print("C Attack Syns:")
-print(f"  Average Time to Send Packet: {c_syn_avg:.2f} ms")
-print(f"  Standard Deviation of Time to Send Packet: {c_syn_std:.2f} ms\n")
+print(f"  Average Time to Send Packet: {c_syn_avg:.5f} ms")
+print(f"  Standard Deviation of Time to Send Packet: {c_syn_std:.5f} ms\n")
