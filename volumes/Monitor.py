@@ -5,14 +5,13 @@ import argparse
 # Argument parser setup
 parser = argparse.ArgumentParser(description="Ping Monitor Script")
 parser.add_argument("--interval", type=int, default=5, help="Interval between pings in seconds")
-parser.add_argument("--ping_count", type=int, default=10, help="Number of pings to send")
 parser.add_argument("--type", type=str, default="p", help="Type of monitoring (for C or Python)")
 
 args = parser.parse_args()
+
 # Argument parsing
 TARGET_IP = "10.9.0.4"  # Replace with your target server's IP address
 INTERVAL = args.interval   # 5 seconds interval between pings
-PING_COUNT = args.ping_count  # Number of pings to send
 TYPE = args.type
 
 # List to store the index and RTT
@@ -34,21 +33,25 @@ def send_ping(target_ip):
 
 # Monitor function to send pings and store results
 def monitor():
-    for i in range(PING_COUNT):
-        rtt = send_ping(TARGET_IP)
-        if rtt is not None:
-            ping_results.append((i, rtt))
-            print(f"Ping {i}: RTT = {rtt} ms")
-        else:
-            print(f"Ping {i}: Request timed out")
-        time.sleep(INTERVAL)
+    i = 0
+    try:
+        while True:
+            rtt = send_ping(TARGET_IP)
+            if rtt is not None:
+                ping_results.append((i, rtt))
+                print(f"Ping {i}: RTT = {rtt} ms")
+            else:
+                print(f"Ping {i}: Request timed out")
+            time.sleep(INTERVAL)
+            i += 1
+    except KeyboardInterrupt:
+        print("Monitoring stopped by user.")
     
     # Save results to a file
+    print("Saving results to file.")
     with open(f'./ping_results_{TYPE}.txt', 'w') as file:
         for index, rtt in ping_results:
             file.write(f"{index} {rtt}\n")
 
-
 if __name__ == '__main__':
     monitor()
- 
