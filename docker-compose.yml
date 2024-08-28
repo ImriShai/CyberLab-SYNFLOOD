@@ -6,56 +6,50 @@ services:
         container_name: Attacker-10.9.0.2
         tty: true
         cap_add:
-                - ALL
+            - ALL
         networks:
             net-10.9.0.0:
                 ipv4_address: 10.9.0.2
         volumes:
-                - ./volumes:/volumes
+            - ./volumes:/volumes
         command: bash -c "
-                      /etc/init.d/openbsd-inetd start  &&
-                      apt update && apt upgrade -y && 
+                      /etc/init.d/openbsd-inetd start &&
+                      apt update && apt upgrade -y &&
                       apt install -y make gcc &&
                       apt-get install -y libpcap-dev libnet-dev &&
                       pip3 install numpy matplotlib scapy &&
                       iptables -A OUTPUT -p tcp --tcp-flags RST RST -j DROP &&
-                      tail -f /dev/null 
+                      tail -f /dev/null
                  "
-                 
+
     Monitor:
         image: handsonsecurity/seed-ubuntu:large
         container_name: Monitor-10.9.0.3
         tty: true
         cap_add:
-                - ALL
+            - ALL
         networks:
             net-10.9.0.0:
                 ipv4_address: 10.9.0.3
         volumes:
-                - ./volumes:/volumes
+            - ./volumes:/volumes
         command: bash -c "
-                      /etc/init.d/openbsd-inetd start  &&
+                      /etc/init.d/openbsd-inetd start &&
                       tail -f /dev/null
                  "
 
-    Target:
-        image: handsonsecurity/seed-ubuntu:large
-        container_name: Target-10.9.0.4
-        tty: true
+    ApacheServer:
+        image: httpd:latest
+        container_name: ApacheServer-10.9.0.4
         cap_add:
-                - ALL
+            - ALL
+        privileged: true
         networks:
             net-10.9.0.0:
                 ipv4_address: 10.9.0.4
-        volumes:
-                - ./volumes:/volumes
-        command: bash -c "
-                      /etc/init.d/openbsd-inetd start  &&
-                      apt update && apt upgrade -y && 
-                      apt install apache2 -y &&
-                      service apache2 start &&
-                      tail -f /dev/null
-                 "
+        ports:
+            - "80:80"
+        
 
 networks:
     net-10.9.0.0:
