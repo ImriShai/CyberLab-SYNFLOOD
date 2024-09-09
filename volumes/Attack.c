@@ -25,7 +25,7 @@
 #define NSEC_TO_MS 1000000.0
 #define WINDOW_SIZE 5840
 
-
+// Chekcksum calculation and pseudo header structure taken from https://www.binarytides.com/syn-flood-dos-attack/
 /* 
     96 bit (12 bytes) pseudo header needed for tcp header checksum calculation 
 */
